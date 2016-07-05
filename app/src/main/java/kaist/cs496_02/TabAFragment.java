@@ -1,19 +1,20 @@
 package kaist.cs496_02;
 
+import android.app.Dialog;
 import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.database.Cursor;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import com.facebook.AccessToken;
@@ -34,6 +35,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -55,15 +57,56 @@ public class TabAFragment extends Fragment {
 
     public static String server_url = "http://ec2-52-78-73-98.ap-northeast-2.compute.amazonaws.com:8080";
     TextView viewText;
-    EditText editText;
     CallbackManager callbackManager;
     static JSONAdapter adapter;
     private final String filename = "phonebook";
+    JSONArray jsonArray = new JSONArray();
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //---------------source from jisu start---------------
+        Dialog dialog = new Dialog(getContext());
+        Uri uri = ContactsContract.Contacts.CONTENT_URI;
+
+        Cursor cursor = dialog.getContext().getContentResolver().query(uri, null, null, null, null);
+        if (cursor.getCount() > 0) {
+            while (cursor.moveToNext()) {
+                String id = cursor.getString(
+                        cursor.getColumnIndex(ContactsContract.Contacts._ID));
+                String name = cursor.getString(cursor.getColumnIndex(
+                        ContactsContract.Contacts.DISPLAY_NAME));
+
+                if (cursor.getInt(cursor.getColumnIndex(
+                        ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0) {
+                    Cursor pCur = dialog.getContext().getContentResolver().query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            null,
+                            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                            new String[]{id}, null);
+                    while (pCur.moveToNext()) {
+                        String phoneNo = pCur.getString(pCur.getColumnIndex(
+                                ContactsContract.CommonDataKinds.Phone.NUMBER));
+
+                        try {
+                            JSONObject jsonObject = new JSONObject();
+                            jsonObject.put("name", name);
+                            jsonObject.put("number", phoneNo);
+                            jsonArray.put(jsonObject);
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    pCur.close();
+                }
+            }
+        }
+
+//-----------------------------source from jisu end---------------------
+
+
+        //----------source from changhwan start--------------
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
             String text;
@@ -85,19 +128,48 @@ public class TabAFragment extends Fragment {
             adapter = new JSONAdapter(getActivity(), values);
         } catch (IOException e) {}
         catch (JSONException e) {}
+        //----------source from changhwan end------------
+
+        for(int i=0;i<jsonArray.length();i++){
+            JSONObject jobj = null;
+            try {
+                jobj = jsonArray.getJSONObject(i);
+                TabAFragment.adapter.add(new PhonePerson(jobj));
+            } catch (JSONException e) {}
+        }
+
     }
+
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        JSONArray jarr = new JSONArray();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            PhonePerson iPerson = (PhonePerson)adapter.getItem(i);
+            JSONObject iObj = iPerson.toJSON();
+            jarr.put(iObj);
+        }
+        try {
+            FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
+            outputStream.write(jarr.toString().getBytes());
+            outputStream.close();
+        } catch (FileNotFoundException e) {}
+        catch (IOException e) {}
+    }
+
+
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+
         FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
-
         View v = inflater.inflate(R.layout.tab_phonebook, container, false);
-        viewText = (TextView) v.findViewById(R.id.textview);
-        editText = (EditText) v.findViewById(R.id.edit_text);
-        Button button_send = (Button) v.findViewById(R.id.button_send);
-        Button button_get = (Button) v.findViewById(R.id.button_get);
+        ListView lv = (ListView) v.findViewById(R.id.list);
+        lv.setAdapter(adapter);
 
-        //Facebook
+        //----------------------Start Facebook Part--------------------------------------------------------------------------------
         callbackManager = CallbackManager.Factory.create();
         LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
         loginButton.setReadPermissions(Arrays.asList("user_friends","public_profile","email")); //access additional profile or post contents
@@ -140,7 +212,7 @@ public class TabAFragment extends Fragment {
                 request.executeAsync();
 
 
-                //viewText.setText("login maintained");
+                viewText.setText("login maintained");
             }
 
             @Override
@@ -153,53 +225,12 @@ public class TabAFragment extends Fragment {
                 viewText.setText("login error");
             }
         });
+//--------------End Facebook Part---------------------------------------------------------
 
-        /*
-        @Override
-        public void onResume(int requestCode, int resultCode, Intent data){
-            callbackManager.onActivityResult(requestCode, resultCode, data);
-        }
-        */
-
-
-        button_send.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.i("LogCat", "[SEND]CLICK");
-                ConnectivityManager connMgr = (ConnectivityManager)
-                        getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-                NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-                if (networkInfo != null && networkInfo.isConnected()) {
-                    Log.i("LogCat", "[SEND]NETWORK AVAILABLE");
-                    // fetch data
-                    new SendMSGTask().execute(editText.getText().toString());
-                } else {
-                    Log.i("LogCat", "[SEND]NETWORK ERROR");
-                    // display error
-                }
-            }
-        });
-
-        button_get.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.i("LogCat", "[GET]Click");
-                ConnectivityManager connMgr = (ConnectivityManager)
-                        getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-                NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-                if (networkInfo != null && networkInfo.isConnected()) {
-                    Log.i("LogCat", "[GET]NETWORK AVAILABLE");
-                    // fetch data
-                    new GetMSGTask().execute(editText.getText().toString());
-                } else {
-                    Log.i("LogCat", "[GET]NETWORK ERROR");
-                    // display error
-                }
-            }
-        });
 
         return v;
     }
+
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -227,6 +258,7 @@ public class TabAFragment extends Fragment {
                 JSONObject obj = new JSONObject();
                 obj.put("name", name);
                 obj.put("number", "010-" + random4digit() + "-" + random4digit());
+                TabAFragment.adapter.add(new PhonePerson(obj));
                 obj.put("id", id);
                 return putJSON(obj);
             } catch (JSONException e) {
