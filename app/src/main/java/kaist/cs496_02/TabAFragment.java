@@ -13,8 +13,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.GridView;
 import android.widget.TextView;
+
+import com.facebook.CallbackManager;
+import com.facebook.FacebookCallback;
+import com.facebook.FacebookException;
+import com.facebook.FacebookSdk;
+import com.facebook.login.LoginResult;
+import com.facebook.login.widget.LoginButton;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -41,15 +47,38 @@ public class TabAFragment extends Fragment {
 
     TextView viewText;
     EditText editText;
+    CallbackManager callbackManager;
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
         View v = inflater.inflate(R.layout.tab_phonebook, container, false);
-
         viewText = (TextView) v.findViewById(R.id.textview);
         editText = (EditText) v.findViewById(R.id.edit_text);
         Button button_send = (Button) v.findViewById(R.id.button_send);
         Button button_get = (Button) v.findViewById(R.id.button_get);
+
+        //Facebook
+        callbackManager = CallbackManager.Factory.create();
+        LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
+        loginButton.setReadPermissions("user_friends"); //access additional profile or post contents
+        loginButton.setFragment(this);
+        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+            @Override
+            public void onSuccess(LoginResult loginResult) {
+                viewText.setText("login Success");
+            }
+
+            @Override
+            public void onCancel() {
+                viewText.setText("login cancled");
+            }
+
+            @Override
+            public void onError(FacebookException error) {
+                viewText.setText("login error");
+            }
+        });
 
         button_send.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -177,6 +206,7 @@ public class TabAFragment extends Fragment {
             }
             return null;
         }
+
 
     }
 

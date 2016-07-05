@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">CS496_02</string>
+    <string name="facebook_app_id">1719869615001204</string>
+    <string name="authority">com.facebook.app.FacebookContentProvider1719869615001204</string>
 </resources>
