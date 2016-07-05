@@ -1,6 +1,7 @@
 package kaist.cs496_02;
 
 import android.content.Context;
+import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.AsyncTask;
@@ -15,10 +16,14 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.facebook.AccessToken;
 import com.facebook.CallbackManager;
 import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
+import com.facebook.GraphRequest;
+import com.facebook.GraphRequestBatch;
+import com.facebook.GraphResponse;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 
@@ -37,6 +42,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.Arrays;
 
 /**
  * Created by q on 2016-07-05.
@@ -52,6 +58,7 @@ public class TabAFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
+
         View v = inflater.inflate(R.layout.tab_phonebook, container, false);
         viewText = (TextView) v.findViewById(R.id.textview);
         editText = (EditText) v.findViewById(R.id.edit_text);
@@ -61,17 +68,75 @@ public class TabAFragment extends Fragment {
         //Facebook
         callbackManager = CallbackManager.Factory.create();
         LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
-        loginButton.setReadPermissions("user_friends"); //access additional profile or post contents
+        loginButton.setReadPermissions(Arrays.asList("user_friends","public_profile")); //access additional profile or post contents
         loginButton.setFragment(this);
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
-                viewText.setText("login Success");
+                AccessToken accessToken = loginResult.getAccessToken();
+
+                /*
+                GraphRequest request = GraphRequest.newMeRequest(
+                        accessToken,
+                        new GraphRequest.GraphJSONObjectCallback() {
+                            @Override
+                            public void onCompleted(
+                                    JSONObject object,
+                                    GraphResponse response) {
+                            }
+                        });
+                Bundle parameters = new Bundle();
+                //parameters.putString("fields", "id,name,link");
+                //request.setParameters(parameters);
+                request.executeAndWait();
+                */
+
+                GraphRequestBatch batch = new GraphRequestBatch(
+                        /*
+                        GraphRequest.newMeRequest(
+                                accessToken,
+                                new GraphRequest.GraphJSONObjectCallback(){
+                                    @Override
+                                    public void onCompleted(
+                                            JSONObject jsonObject,
+                                            GraphResponse response){
+                                        //Application code for user
+                                    }
+                                }),
+                        */
+                        GraphRequest.newMyFriendsRequest(
+                                accessToken,
+                                new GraphRequest.GraphJSONArrayCallback(){
+                                    @Override
+                                    public void onCompleted(
+                                            JSONArray jsonArray,
+                                            GraphResponse response){
+                                        //Application code for users friends
+                                        //List<String> list = new ArrayList<String>();
+                                        for(int i=0;i<jsonArray.length();i++){
+                                            try {
+                                                Log.i("friends", jsonArray.getJSONObject(i).getString("name"));
+                                            } catch (JSONException e) {
+                                                e.printStackTrace();
+                                            }
+                                        }
+
+                                    }
+                                }
+                        )
+                );
+                batch.addCallback(new GraphRequestBatch.Callback(){
+                    @Override
+                    public void onBatchCompleted(GraphRequestBatch graphRequests){
+                        //Application code for when the batch finishes
+                    }
+                });
+                batch.executeAndWait();
             }
 
             @Override
             public void onCancel() {
-                viewText.setText("login cancled");
+                viewText.setText("login canceled");
             }
 
             @Override
@@ -79,6 +144,14 @@ public class TabAFragment extends Fragment {
                 viewText.setText("login error");
             }
         });
+
+        /*
+        @Override
+        public void onResume(int requestCode, int resultCode, Intent data){
+            callbackManager.onActivityResult(requestCode, resultCode, data);
+        }
+        */
+
 
         button_send.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -117,6 +190,12 @@ public class TabAFragment extends Fragment {
         });
 
         return v;
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        callbackManager.onActivityResult(requestCode, resultCode, data);
     }
 
     public String readIt(InputStream stream, int len) throws IOException, UnsupportedEncodingException {
