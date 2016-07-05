@@ -22,8 +22,8 @@ import com.facebook.FacebookCallback;
 import com.facebook.FacebookException;
 import com.facebook.FacebookSdk;
 import com.facebook.GraphRequest;
-import com.facebook.GraphRequestBatch;
 import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
 import com.facebook.login.LoginResult;
 import com.facebook.login.widget.LoginButton;
 
@@ -31,6 +31,9 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -42,6 +45,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -50,10 +54,38 @@ import java.util.Arrays;
 public class TabAFragment extends Fragment {
 
     public static String server_url = "http://ec2-52-78-73-98.ap-northeast-2.compute.amazonaws.com:8080";
-
     TextView viewText;
     EditText editText;
     CallbackManager callbackManager;
+    static JSONAdapter adapter;
+    private final String filename = "phonebook";
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
+            String text;
+            String jsonfile="";
+            while ((text=reader.readLine())!=null) {
+                jsonfile+=text;
+            }
+            JSONArray jarray = new JSONArray(jsonfile);
+            ArrayList<PhonePerson> values = new ArrayList<>();
+            for (int i = 0 ; i < jarray.length(); i++) {
+                values.add(new PhonePerson((JSONObject) jarray.get(i)));
+            }
+            adapter = new JSONAdapter(getActivity(), values);
+
+            reader.close();
+        } catch (FileNotFoundException e) {
+            File fPhoneBook = new File(getContext().getFilesDir(), filename);
+            ArrayList<PhonePerson> values = new ArrayList<>();
+            adapter = new JSONAdapter(getActivity(), values);
+        } catch (IOException e) {}
+        catch (JSONException e) {}
+    }
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -68,70 +100,47 @@ public class TabAFragment extends Fragment {
         //Facebook
         callbackManager = CallbackManager.Factory.create();
         LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
-        loginButton.setReadPermissions(Arrays.asList("user_friends","public_profile")); //access additional profile or post contents
+        loginButton.setReadPermissions(Arrays.asList("user_friends","public_profile","email")); //access additional profile or post contents
         loginButton.setFragment(this);
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
             public void onSuccess(LoginResult loginResult) {
                 AccessToken accessToken = loginResult.getAccessToken();
 
-                /*
-                GraphRequest request = GraphRequest.newMeRequest(
+
+                GraphRequest request = new GraphRequest(
                         accessToken,
-                        new GraphRequest.GraphJSONObjectCallback() {
+                        "/me/taggable_friends",
+                        null,
+                        HttpMethod.GET,
+                        new GraphRequest.Callback(){
                             @Override
-                            public void onCompleted(
-                                    JSONObject object,
-                                    GraphResponse response) {
-                            }
-                        });
-                Bundle parameters = new Bundle();
-                //parameters.putString("fields", "id,name,link");
-                //request.setParameters(parameters);
-                request.executeAndWait();
-                */
-
-                GraphRequestBatch batch = new GraphRequestBatch(
-                        /*
-                        GraphRequest.newMeRequest(
-                                accessToken,
-                                new GraphRequest.GraphJSONObjectCallback(){
-                                    @Override
-                                    public void onCompleted(
-                                            JSONObject jsonObject,
-                                            GraphResponse response){
-                                        //Application code for user
-                                    }
-                                }),
-                        */
-                        GraphRequest.newMyFriendsRequest(
-                                accessToken,
-                                new GraphRequest.GraphJSONArrayCallback(){
-                                    @Override
-                                    public void onCompleted(
-                                            JSONArray jsonArray,
-                                            GraphResponse response){
-                                        //Application code for users friends
-                                        //List<String> list = new ArrayList<String>();
-                                        for(int i=0;i<jsonArray.length();i++){
-                                            try {
-                                                Log.i("friends", jsonArray.getJSONObject(i).getString("name"));
-                                            } catch (JSONException e) {
-                                                e.printStackTrace();
+                            public void onCompleted(final GraphResponse response){
+                                //Application code for users friends
+                                new Thread(){
+                                    public void run(){
+                                        //get data and POST data to server
+                                        try{
+                                            JSONArray jsonArray = response.getJSONObject().getJSONArray("data");
+                                            if(jsonArray != null){
+                                                for(int i=0;i<jsonArray.length();i++){
+                                                    String name = jsonArray.getJSONObject(i).getString("name");
+                                                    String id = jsonArray.getJSONObject(i).getString("id");
+                                                    new SendMSGTask().execute(name, id);
+                                                }
                                             }
+                                        } catch (JSONException e){
+                                            e.printStackTrace();
                                         }
-
                                     }
-                                }
-                        )
+                                }.start();
+                            }
+                        }
                 );
-                batch.addCallback(new GraphRequestBatch.Callback(){
-                    @Override
-                    public void onBatchCompleted(GraphRequestBatch graphRequests){
-                        //Application code for when the batch finishes
-                    }
-                });
-                batch.executeAndWait();
+                request.executeAsync();
+
+
+                //viewText.setText("login maintained");
             }
 
             @Override
@@ -212,12 +221,13 @@ public class TabAFragment extends Fragment {
         protected String doInBackground(String... params) {
 
             String name = params[0];
+            String id = params[1];
 
             try {
                 JSONObject obj = new JSONObject();
                 obj.put("name", name);
                 obj.put("number", "010-" + random4digit() + "-" + random4digit());
-                obj.put("email", name + random4digit() + "@naver.com");
+                obj.put("id", id);
                 return putJSON(obj);
             } catch (JSONException e) {
             }
