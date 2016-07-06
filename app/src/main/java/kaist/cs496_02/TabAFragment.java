@@ -65,9 +65,7 @@ public class TabAFragment extends Fragment {
     JSONArray DBjarr2; //for DB
     JSONArray FBjarr;
     ArrayList<PhonePerson> values = new ArrayList<>();  //for memory
-    String username="LeeChangHwan";
-
-
+    String username = "LeeChangHwan";
 
 
     @Override
@@ -129,30 +127,32 @@ public class TabAFragment extends Fragment {
             try {
                 BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
                 String text;
-                String jsonfile="";
-                while ((text=reader.readLine())!=null) {
-                    jsonfile+=text;
+                String jsonfile = "";
+                while ((text = reader.readLine()) != null) {
+                    jsonfile += text;
                 }
                 JSONArray jarray = new JSONArray(jsonfile);
-                for (int i = 0 ; i < jarray.length(); i++) {
-                    values.add(new PhonePerson((JSONObject)jarray.get(i)));
+                for (int i = 0; i < jarray.length(); i++) {
+                    values.add(new PhonePerson((JSONObject) jarray.get(i)));
                 }
                 adapter = new JSONAdapter(getActivity(), values);
                 reader.close();
             } catch (FileNotFoundException e) {
                 ArrayList<PhonePerson> values = new ArrayList<>();
                 adapter = new JSONAdapter(getActivity(), values);
-            } catch (IOException e) {}
-            catch (JSONException e) {}
+            } catch (IOException e) {
+            } catch (JSONException e) {
+            }
             //----------source from changhwan end------------
 
 
-            for(int i=0;i<jsonArray.length();i++){
+            for (int i = 0; i < jsonArray.length(); i++) {
                 JSONObject jobj = null;
                 try {
                     jobj = jsonArray.getJSONObject(i);
                     TabAFragment.adapter.add(new PhonePerson(jobj));
-                } catch (JSONException e){}
+                } catch (JSONException e) {
+                }
             }
 
         }
@@ -166,7 +166,7 @@ public class TabAFragment extends Fragment {
 
         JSONArray jarr = new JSONArray();
         for (int i = 0; i < adapter.getCount(); i++) {
-            PhonePerson iPerson = (PhonePerson)adapter.getItem(i);
+            PhonePerson iPerson = (PhonePerson) adapter.getItem(i);
             JSONObject iObj = iPerson.toJSON();
             jarr.put(iObj);
         }
@@ -174,24 +174,25 @@ public class TabAFragment extends Fragment {
             FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
             outputStream.write(jarr.toString().getBytes());
             outputStream.close();
-        } catch (FileNotFoundException e) {}
-        catch (IOException e) {}
+        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
+        }
     }
-
 
 
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-
         FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
         View v = inflater.inflate(R.layout.tab_phonebook, container, false);
-        ListView lv = (ListView) v.findViewById(R.id.list);
+        viewText = (TextView) v.findViewById(R.id.textView);
+        ListView lv = (ListView)
+                v.findViewById(R.id.list);
         lv.setAdapter(adapter);
 
         //----------------------Start Facebook Part--------------------------------------------------------------------------------
         callbackManager = CallbackManager.Factory.create();
         LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
-        loginButton.setReadPermissions(Arrays.asList("user_friends","public_profile")); //access additional profile or post contents
+        loginButton.setReadPermissions(Arrays.asList("user_friends", "public_profile", "email")); //access additional profile or post contents
         loginButton.setFragment(this);
         loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
             @Override
@@ -203,28 +204,27 @@ public class TabAFragment extends Fragment {
                         "/me/taggable_friends",
                         null,
                         HttpMethod.GET,
-                        new GraphRequest.Callback(){
+                        new GraphRequest.Callback() {
                             @Override
-                            public void onCompleted(final GraphResponse response){
+                            public void onCompleted(final GraphResponse response) {
                                 //Application code for users friends
-                                new Thread(){
-                                    public void run(){
+                                new Thread() {
+                                    public void run() {
                                         //get data and POST data to server
-                                        try{
+                                        try {
                                             JSONArray jsonArray = response.getJSONObject().getJSONArray("data");
-                                            if(jsonArray != null){
-                                                for(int i=0;i<jsonArray.length();i++){
+                                            if (jsonArray != null) {
+                                                for (int i = 0; i < jsonArray.length(); i++) {
                                                     String name = jsonArray.getJSONObject(i).getString("name");
                                                     String number = "010-" + random4digit() + "-" + random4digit();
                                                     JSONObject FBobj = new JSONObject();
                                                     FBobj.put("name", name);
                                                     FBobj.put("number", number);
+                                                    FBjarr = new JSONArray();
                                                     FBjarr.put(FBobj);
                                                 }
-
-
                                             }
-                                        } catch (JSONException e){
+                                        } catch (JSONException e) {
                                             e.printStackTrace();
                                         }
                                     }
@@ -234,22 +234,27 @@ public class TabAFragment extends Fragment {
                 );
                 request.executeAsync();
 
-                /*
+
                 GraphRequest request2 = GraphRequest.newMeRequest(
                         accessToken,
                         new GraphRequest.GraphJSONObjectCallback() {
                             @Override
-                            public void onCompleted(
-                                    JSONObject object,
-                                    GraphResponse response) {
-                                Log.i("facebookuser",object.toString());
+                            public void onCompleted(JSONObject object, GraphResponse response) {
+                                Log.i("facebookuser", object.toString());
+                                try {
+                                    String
+                                    username = object.getString("name");
+                                } catch (JSONException e) {
+                                    e.printStackTrace();
+                                }
                             }
                         });
                 Bundle parameters = new Bundle();
                 parameters.putString("fields", "id,name,link");
                 request2.setParameters(parameters);
                 request2.executeAsync();
-                */
+
+
                 // fetch data from DB
                 new GetMSGTask().execute(username);
                 viewText.setText("login maintained");
@@ -265,7 +270,7 @@ public class TabAFragment extends Fragment {
                 viewText.setText("login error");
             }
         });
-    //--------------End Facebook Part---------------------------------------------------------
+        //--------------End Facebook Part---------------------------------------------------------
 
 
         return v;
@@ -286,18 +291,18 @@ public class TabAFragment extends Fragment {
     }
 
     //put DBdata into adapter
-    public void jsonParserList(String src){
-        try{
+    public void jsonParserList(String src) {
+        try {
             JSONArray DBjarr = new JSONArray(src);
             JSONObject DBjobj;
-            for(int i=0;i<DBjarr.length();i++){
+            for (int i = 0; i < DBjarr.length(); i++) {
                 DBjobj = DBjarr.getJSONObject(i);
-                if(DBjobj != null){
+                if (DBjobj != null) {
                     String name = DBjobj.getString("name");
                     String number = DBjobj.getString("number");
                     JSONObject DBjobj2 = new JSONObject();
                     DBjobj2.put("name", name);
-                    DBjobj2.put("number",number);
+                    DBjobj2.put("number", number);
                     DBjarr2.put(DBjobj2);
                     values.add(new PhonePerson(DBjobj2));
                 }
@@ -420,7 +425,7 @@ public class TabAFragment extends Fragment {
             try {
                 rawURL = server_url + "/" + URLEncoder.encode(name, "UTF-8");
             } catch (UnsupportedEncodingException e) {
-                Log.i("PLACE","getJSON");
+                Log.i("PLACE", "getJSON");
                 e.printStackTrace();
             }
             InputStream is = null;
