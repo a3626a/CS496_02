@@ -34,6 +34,7 @@ public class FacebookPhonebook {
     private String name;
     private Activity activity;
     private FacebookAapter adapter;
+    private TabBFragment.ImageAdapter iAdapter;
     private ArrayList<JSONObject> disk;
     private ArrayList<JSONObject> db;
     private ArrayList<JSONObject> fb;
@@ -43,6 +44,11 @@ public class FacebookPhonebook {
         this.adapter = adapter;
         readDataFromDisk();
         readDataFromDB();
+    }
+
+    public void setImageAdapter(TabBFragment.ImageAdapter iAdapter) {
+        this.iAdapter = iAdapter;
+
     }
 
     public String getName() {
@@ -71,7 +77,7 @@ public class FacebookPhonebook {
             while ((text = reader.readLine()) != null) {
                 jsonfile += text;
             }
-            Log.i("LogCat","DATA FROM DISK"+jsonfile);
+            Log.i("LogCat", "DATA FROM DISK" + jsonfile);
             JSONObject jobj = new JSONObject(jsonfile);
 
             name = jobj.getString("name");
@@ -82,13 +88,14 @@ public class FacebookPhonebook {
             }
 
             adapter.notifyDataSetChanged();
-
+            if (iAdapter != null)
+                iAdapter.updateSize();
             reader.close();
         } catch (FileNotFoundException e) {
-            Log.i("LogCat","FILE NOT FOUND");
+            Log.i("LogCat", "FILE NOT FOUND");
         } catch (IOException e) {
         } catch (JSONException e) {
-            Log.i("LogCat","JSON EXCEPTION");
+            Log.i("LogCat", "JSON EXCEPTION");
         }
     }
 
@@ -99,8 +106,8 @@ public class FacebookPhonebook {
             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(activity.openFileOutput(filename, Context.MODE_PRIVATE)));
             JSONArray jarr = StreamHelper.getJSONArrayFromArrayList(db);
             JSONObject jobj = new JSONObject();
-            jobj.put("name",name);
-            jobj.put("phonebook",jarr);
+            jobj.put("name", name);
+            jobj.put("phonebook", jarr);
             writer.write(jobj.toString());
             writer.close();
         } catch (FileNotFoundException e) {
@@ -128,9 +135,11 @@ public class FacebookPhonebook {
             fb.add(arr.getJSONObject(i));
         }
 
-        adapter.notifyDataSetChanged();
-
         this.name = name;
+
+        adapter.notifyDataSetChanged();
+        if (iAdapter != null)
+            iAdapter.updateSize();
 
         writeDataToDB();
         writeDataToDisk();
@@ -184,7 +193,7 @@ public class FacebookPhonebook {
                 Log.i("LogCat", "[GET]GET RESPOND");
                 // Convert the InputStream into a string
                 String contentAsString = StreamHelper.readIt(is);
-                Log.i("LogCat", "[GET]READ RESPOND: "+contentAsString);
+                Log.i("LogCat", "[GET]READ RESPOND: " + contentAsString);
                 is.close();
                 return new JSONArray(contentAsString);
             } catch (MalformedURLException e) {

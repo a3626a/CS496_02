@@ -47,23 +47,6 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
         super.onCreate(savedInstanceState);
         adapter = new ImageAdapter(getActivity());
         mPlaceHolderBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.waiting);
-        new AsyncTask<ImageAdapter.IntegerWrapper, Void, ImageAdapter.IntegerWrapper>() {
-            @Override
-            protected ImageAdapter.IntegerWrapper doInBackground(ImageAdapter.IntegerWrapper... params) {
-                ImageAdapter.IntegerWrapper wrp = params[0];
-                if (TabAFragment.fbpb.getName()==null) {
-                    wrp.set(0);
-                } else {
-                    wrp.set(NetworkHelper.getGallerySize(TabAFragment.fbpb.getName()));
-                }
-                return wrp;
-            }
-
-            @Override
-            protected void onPostExecute(ImageAdapter.IntegerWrapper wrp) {
-                wrp.notifyChanged();
-            }
-        }.execute(adapter.length);
     }
 
     @Nullable
@@ -73,8 +56,11 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
         GridView gridView = (GridView) v.findViewById(R.id.GridView);
         gridView.setAdapter(adapter);
         gridView.setOnItemClickListener(this);
+        if (TabAFragment.fbpb != null)
+            TabAFragment.fbpb.setImageAdapter(adapter);
+        adapter.updateSize();
 
-        view = (ImageView)v.findViewById(R.id.test_view);
+        view = (ImageView) v.findViewById(R.id.test_view);
 
         Button btn_upload = (Button) v.findViewById(R.id.upload);
         btn_upload.setOnClickListener(new View.OnClickListener() {
@@ -100,14 +86,14 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
                                 Log.i("LogCat", "[UPLOAD]TITLE INDEX: " + Integer.toString(titleIndex));
 
                                 while (cp.moveToNext()) {
-                                    Log.i("LogCat", "[POST]URI : "+"file://"+cp.getString(dataIndex));
-                                    Uri imageUri = Uri.parse("file://"+cp.getString(dataIndex));
+                                    Log.i("LogCat", "[POST]URI : " + "file://" + cp.getString(dataIndex));
+                                    Uri imageUri = Uri.parse("file://" + cp.getString(dataIndex));
                                     int len = cp.getInt(sizeIndex);
-                                    Log.i("LogCat", "[POST]TITLE : "+cp.getString(titleIndex));
+                                    Log.i("LogCat", "[POST]TITLE : " + cp.getString(titleIndex));
                                     String title = cp.getString(titleIndex);
                                     // Connect to the server
-                                    URL url = new URL(MainActivity.server_url_gallery+"/"+ URLEncoder.encode(TabAFragment.fbpb.getName()+"/"+title, "UTF-8"));
-                                    Log.i("LogCat", "[POST]URL : "+MainActivity.server_url_gallery+"/"+TabAFragment.fbpb.getName()+"/"+title);
+                                    URL url = new URL(MainActivity.server_url_gallery + "/" + URLEncoder.encode(TabAFragment.fbpb.getName() + "/" + title, "UTF-8"));
+                                    Log.i("LogCat", "[POST]URL : " + MainActivity.server_url_gallery + "/" + TabAFragment.fbpb.getName() + "/" + title);
                                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                                     // Setup header
                                     conn.setReadTimeout(5000);
@@ -120,8 +106,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
                                     int bytesRead;
                                     InputStream is = getActivity().getContentResolver().openInputStream(imageUri);
                                     OutputStream os = conn.getOutputStream();
-                                    while ((bytesRead = is.read(buffer)) != -1)
-                                    {
+                                    while ((bytesRead = is.read(buffer)) != -1) {
                                         os.write(buffer, 0, bytesRead);
                                     }
                                     os.flush();
@@ -131,10 +116,10 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
 
                                     // Get response
                                     int response = conn.getResponseCode();
-                                    Log.i("LogCat", "[POST]RESPONSE : "+ Integer.toString(response));
+                                    Log.i("LogCat", "[POST]RESPONSE : " + Integer.toString(response));
                                     is = conn.getInputStream();
                                     String contentAsString = StreamHelper.readIt(is);
-                                    Log.i("LogCat", "[SEND]RESPOND : "+contentAsString);
+                                    Log.i("LogCat", "[SEND]RESPOND : " + contentAsString);
                                     os.close();
                                     is.close();
                                 }
@@ -170,7 +155,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
         startActivity(i);
     }
 
-    private class ImageAdapter extends BaseAdapter {
+    public class ImageAdapter extends BaseAdapter {
         private Context mContext;
         private IntegerWrapper length;
 
@@ -208,6 +193,29 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
             return imageView;
         }
 
+        public void updateSize() {
+            if (TabAFragment.fbpb.getName() != null) {
+                Log.i("LogCat","Update Size["+TabAFragment.fbpb.getName()+"]");
+            }
+            new AsyncTask<ImageAdapter.IntegerWrapper, Void, ImageAdapter.IntegerWrapper>() {
+                @Override
+                protected ImageAdapter.IntegerWrapper doInBackground(ImageAdapter.IntegerWrapper... params) {
+                    ImageAdapter.IntegerWrapper wrp = params[0];
+                    if (TabAFragment.fbpb.getName() == null) {
+                        wrp.set(0);
+                    } else {
+                        wrp.set(NetworkHelper.getGallerySize(TabAFragment.fbpb.getName()));
+                    }
+                    return wrp;
+                }
+
+                @Override
+                protected void onPostExecute(ImageAdapter.IntegerWrapper wrp) {
+                    notifyDataSetChanged();
+                }
+            }.execute(adapter.length);
+        }
+
         private class IntegerWrapper {
             private int length;
 
@@ -216,7 +224,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
             }
 
             public IntegerWrapper(int length) {
-                this.length=length;
+                this.length = length;
             }
 
             public int get() {
@@ -224,11 +232,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
             }
 
             public void set(int length) {
-                this.length=length;
-            }
-
-            public void notifyChanged() {
-                notifyDataSetChanged();
+                this.length = length;
             }
         }
 
