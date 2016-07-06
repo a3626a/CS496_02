@@ -62,10 +62,12 @@ public class TabAFragment extends Fragment {
     private final String filename = "phonebook";
     JSONArray jsonArray = new JSONArray(); //for Contacts
     JSONArray DBjarr2; //for DB
-    JSONArray FBjarr;
+    JSONArray FBjarr; //for facebook
+    JSONArray Diskjarr; //for disk
     ArrayList<PhonePerson> values = new ArrayList<>();  //for memory
     String username = "LeeChangHwan";
-
+    Boolean connected;
+    Boolean FBlogon;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -75,85 +77,12 @@ public class TabAFragment extends Fragment {
         NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
         if (networkInfo != null && networkInfo.isConnected()) {
             Log.i("LogCat", "[GET]NETWORK AVAILABLE");
-
+            connected = true;
         } else {
             Log.i("LogCat", "[GET]NETWORK ERROR");
-            // fetch data from disk and phonebook
-
-            //fetch from phonebook
-            //---------------source from jisu start---------------
-
-            Dialog dialog = new Dialog(getContext());
-            Uri uri = ContactsContract.Contacts.CONTENT_URI;
-
-            Cursor cursor = dialog.getContext().getContentResolver().query(uri, null, null, null, null);
-            if (cursor.getCount() > 0) {
-                while (cursor.moveToNext()) {
-                    String id = cursor.getString(
-                            cursor.getColumnIndex(ContactsContract.Contacts._ID));
-                    String name = cursor.getString(cursor.getColumnIndex(
-                            ContactsContract.Contacts.DISPLAY_NAME));
-
-                    if (cursor.getInt(cursor.getColumnIndex(
-                            ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0) {
-                        Cursor pCur = dialog.getContext().getContentResolver().query(
-                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                                null,
-                                ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
-                                new String[]{id}, null);
-                        while (pCur.moveToNext()) {
-                            String phoneNo = pCur.getString(pCur.getColumnIndex(
-                                    ContactsContract.CommonDataKinds.Phone.NUMBER));
-
-                            try {
-                                JSONObject jsonObject = new JSONObject();
-                                jsonObject.put("name", name);
-                                jsonObject.put("number", phoneNo);
-                                jsonArray.put(jsonObject);
-                            } catch (JSONException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                        pCur.close();
-                    }
-                }
-            }
-
-            //-----------------------------source from jisu end---------------------
-
-            //fetch from disk
-            //----------source from changhwan start--------------
-            try {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
-                String text;
-                String jsonfile = "";
-                while ((text = reader.readLine()) != null) {
-                    jsonfile += text;
-                }
-                JSONArray jarray = new JSONArray(jsonfile);
-                for (int i = 0; i < jarray.length(); i++) {
-                    values.add(new PhonePerson((JSONObject) jarray.get(i)));
-                }
-                adapter = new JSONAdapter(getActivity(), values);
-                reader.close();
-            } catch (FileNotFoundException e) {
-                ArrayList<PhonePerson> values = new ArrayList<>();
-                adapter = new JSONAdapter(getActivity(), values);
-            } catch (IOException e) {
-            } catch (JSONException e) {
-            }
-            //----------source from changhwan end------------
-
-
-            for (int i = 0; i < jsonArray.length(); i++) {
-                JSONObject jobj = null;
-                try {
-                    jobj = jsonArray.getJSONObject(i);
-                    TabAFragment.adapter.add(new PhonePerson(jobj));
-                } catch (JSONException e) {
-                }
-            }
-
+            getDataFromDisk();
+            getDataFromContact();
+            connected = false;
         }
 
     }
@@ -163,18 +92,23 @@ public class TabAFragment extends Fragment {
     public void onDestroy() {
         super.onDestroy();
 
-        JSONArray jarr = new JSONArray();
-        for (int i = 0; i < adapter.getCount(); i++) {
-            PhonePerson iPerson = (PhonePerson) adapter.getItem(i);
-            JSONObject iObj = iPerson.toJSON();
-            jarr.put(iObj);
-        }
-        try {
-            FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
-            outputStream.write(jarr.toString().getBytes());
-            outputStream.close();
-        } catch (FileNotFoundException e) {
-        } catch (IOException e) {
+
+        if (connected) {
+            try {
+                FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
+                outputStream.write(DBjarr2.toString().getBytes());
+                outputStream.close();
+            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
+            }
+        } else {
+            try {
+                FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
+                outputStream.write(Diskjarr.toString().getBytes());
+                outputStream.close();
+            } catch (FileNotFoundException e) {
+            } catch (IOException e) {
+            }
         }
     }
 
@@ -221,7 +155,6 @@ public class TabAFragment extends Fragment {
                                                     FBobj.put("name", name);
                                                     FBobj.put("number", number);
                                                     FBjarr.put(FBobj);
-                                                    values.add(new PhonePerson(FBobj));
                                                 }
                                             }
                                         } catch (JSONException e) {
@@ -254,24 +187,102 @@ public class TabAFragment extends Fragment {
                 parameters.putString("fields", "id,name,link");
                 request2.setParameters(parameters);
                 request2.executeAsync();
-                adapter = new JSONAdapter(getActivity(),values);
+                //----------------------End Facebook login success Part--------------------------------------------------------------------------------
+
+                FBlogon = true;
                 viewText.setText("login maintained");
             }
 
             @Override
             public void onCancel() {
+                FBlogon = false;
                 viewText.setText("login canceled");
             }
 
             @Override
             public void onError(FacebookException error) {
+                FBlogon = false;
                 viewText.setText("login error");
             }
         });
         //--------------End Facebook Part---------------------------------------------------------
 
 
+        if (FBlogon) {
+            new GetMSGTask().execute(username);
+            getDataFromContact();
+        } else {
+            getDataFromDisk();
+            getDataFromContact();
+        }
         return v;
+    }
+
+
+    //use existing adapter
+    private void getDataFromContact() {
+        Dialog dialog = new Dialog(getContext());
+        Uri uri = ContactsContract.Contacts.CONTENT_URI;
+
+        Cursor cursor = dialog.getContext().getContentResolver().query(uri, null, null, null, null);
+        if (cursor.getCount() > 0) {
+            while (cursor.moveToNext()) {
+                String id = cursor.getString(
+                        cursor.getColumnIndex(ContactsContract.Contacts._ID));
+                String name = cursor.getString(cursor.getColumnIndex(
+                        ContactsContract.Contacts.DISPLAY_NAME));
+
+                if (cursor.getInt(cursor.getColumnIndex(
+                        ContactsContract.Contacts.HAS_PHONE_NUMBER)) > 0) {
+                    Cursor pCur = dialog.getContext().getContentResolver().query(
+                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            null,
+                            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                            new String[]{id}, null);
+                    while (pCur.moveToNext()) {
+                        String phoneNo = pCur.getString(pCur.getColumnIndex(
+                                ContactsContract.CommonDataKinds.Phone.NUMBER));
+
+                        try {
+                            JSONObject jsonObject = new JSONObject();
+                            jsonObject.put("name", name);
+                            jsonObject.put("number", phoneNo);
+                            jsonArray.put(jsonObject);
+                            adapter.add(new PhonePerson(jsonObject));
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    pCur.close();
+                }
+            }
+        }
+
+    }
+
+
+    //make new adapter
+    private void getDataFromDisk() {
+        try {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
+            String text;
+            String jsonfile = "";
+            while ((text = reader.readLine()) != null) {
+                jsonfile += text;
+            }
+            JSONArray jarray = new JSONArray(jsonfile);
+            for (int i = 0; i < jarray.length(); i++) {
+                values.add(new PhonePerson((JSONObject) jarray.get(i)));
+                Diskjarr.put(jarray.get(i));
+            }
+            adapter = new JSONAdapter(getActivity(), values);
+            reader.close();
+        } catch (FileNotFoundException e) {
+            ArrayList<PhonePerson> values = new ArrayList<>();
+            adapter = new JSONAdapter(getActivity(), values);
+        } catch (IOException e) {
+        } catch (JSONException e) {
+        }
     }
 
 
