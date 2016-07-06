@@ -31,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.net.URLEncoder;
 
 /**
  * Created by q on 2016-06-29.
@@ -46,13 +47,21 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
         super.onCreate(savedInstanceState);
         adapter = new ImageAdapter(getActivity());
         mPlaceHolderBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.waiting);
-        new AsyncTask<ImageAdapter.IntegerWrapper, Void, Void>() {
+        new AsyncTask<ImageAdapter.IntegerWrapper, Void, ImageAdapter.IntegerWrapper>() {
             @Override
-            protected Void doInBackground(ImageAdapter.IntegerWrapper... params) {
+            protected ImageAdapter.IntegerWrapper doInBackground(ImageAdapter.IntegerWrapper... params) {
                 ImageAdapter.IntegerWrapper wrp = params[0];
-                wrp.set(NetworkHelper.getGallerySize("LeeChangHwan"));
-                Log.i("LogCat","Gallery Size: "+Integer.toString(wrp.get()));
-                return null;
+                if (TabAFragment.fbpb.getName()==null) {
+                    wrp.set(0);
+                } else {
+                    wrp.set(NetworkHelper.getGallerySize(TabAFragment.fbpb.getName()));
+                }
+                return wrp;
+            }
+
+            @Override
+            protected void onPostExecute(ImageAdapter.IntegerWrapper wrp) {
+                wrp.notifyChanged();
             }
         }.execute(adapter.length);
     }
@@ -74,7 +83,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
                 Log.i("LogCat", "[UPLOAD]CLICK");
                 ConnectivityManager connMgr = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
                 NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-                if (networkInfo != null && networkInfo.isConnected()) {
+                if (networkInfo != null && networkInfo.isConnected() && TabAFragment.fbpb.getName() != null) {
                     Log.i("LogCat", "[UPLOAD]NETWORK AVAILABLE");
                     new AsyncTask<Void, Void, String>() {
                         @Override
@@ -91,11 +100,14 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
                                 Log.i("LogCat", "[UPLOAD]TITLE INDEX: " + Integer.toString(titleIndex));
 
                                 while (cp.moveToNext()) {
+                                    Log.i("LogCat", "[POST]URI : "+"file://"+cp.getString(dataIndex));
                                     Uri imageUri = Uri.parse("file://"+cp.getString(dataIndex));
                                     int len = cp.getInt(sizeIndex);
+                                    Log.i("LogCat", "[POST]TITLE : "+cp.getString(titleIndex));
                                     String title = cp.getString(titleIndex);
                                     // Connect to the server
-                                    URL url = new URL(MainActivity.server_url_gallery+"/"+"LeeChangHwan"+"/"+title);
+                                    URL url = new URL(MainActivity.server_url_gallery+"/"+ URLEncoder.encode(TabAFragment.fbpb.getName()+"/"+title, "UTF-8"));
+                                    Log.i("LogCat", "[POST]URL : "+MainActivity.server_url_gallery+"/"+TabAFragment.fbpb.getName()+"/"+title);
                                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                                     // Setup header
                                     conn.setReadTimeout(5000);
@@ -119,6 +131,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
 
                                     // Get response
                                     int response = conn.getResponseCode();
+                                    Log.i("LogCat", "[POST]RESPONSE : "+ Integer.toString(response));
                                     is = conn.getInputStream();
                                     String contentAsString = StreamHelper.readIt(is);
                                     Log.i("LogCat", "[SEND]RESPOND : "+contentAsString);
@@ -212,6 +225,10 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
 
             public void set(int length) {
                 this.length=length;
+            }
+
+            public void notifyChanged() {
+                notifyDataSetChanged();
             }
         }
 

@@ -22,8 +22,12 @@ import java.lang.ref.WeakReference;
 public class BitmapHelper {
 
     public static Bitmap decodeSampledBitmapFromResource(int pos, int reqWidth, int reqHeight) {
+
+        if (TabAFragment.fbpb.getName() == null)
+            return null;
+
         try {
-            InputStream is = NetworkHelper.getImage("LeeChangHwan",pos);
+            InputStream is = NetworkHelper.getImage(TabAFragment.fbpb.getName(),pos);
             if (is != null) {
                 Log.i("LogCat","[BITMAP]GETTING INPUT STREAM FROM NETWORK SUCCESS");
             } else {

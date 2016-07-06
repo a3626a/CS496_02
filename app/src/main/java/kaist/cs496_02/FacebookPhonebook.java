@@ -45,6 +45,10 @@ public class FacebookPhonebook {
         readDataFromDB();
     }
 
+    public String getName() {
+        return this.name;
+    }
+
     public ArrayList<JSONObject> getPhonebook() {
         if (fb != null) {
             return fb;
@@ -134,9 +138,6 @@ public class FacebookPhonebook {
 
     public class GetMSGTask extends AsyncTask<Void, Void, Void> {
 
-        public GetMSGTask() {
-        }
-
         @Override
         protected Void doInBackground(Void... params) {
             JSONArray arr = getJSON();
@@ -145,13 +146,16 @@ public class FacebookPhonebook {
                 for (int i = 0; i < arr.length(); i++) {
                     db.add(arr.getJSONObject(i));
                 }
-
-                adapter.notifyDataSetChanged();
                 writeDataToDisk();
             } catch (JSONException e) {
                 e.printStackTrace();
             }
             return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            adapter.notifyDataSetChanged();
         }
 
         public JSONArray getJSON() {

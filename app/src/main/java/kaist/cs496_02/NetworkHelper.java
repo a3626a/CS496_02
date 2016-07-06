@@ -11,6 +11,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.net.URLEncoder;
 
 /**
  * Created by q on 2016-07-06.
@@ -29,7 +30,7 @@ public class NetworkHelper {
     public static InputStream getImage(final String name, final int pos) {
         try {
             // Connect to the server
-            URL url = new URL(MainActivity.server_url_gallery + "/" + name + "/" + Integer.toString(pos));
+            URL url = new URL(MainActivity.server_url_gallery + "/" + URLEncoder.encode(name + "/" + Integer.toString(pos),"UTF-8"));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             // Setup header
             conn.setReadTimeout(5000);
@@ -57,7 +58,7 @@ public class NetworkHelper {
     public static int getGallerySize(final String name) {
         try {
             // Connect to the server
-            URL url = new URL(MainActivity.server_url_gallery + "/" + name + "/length");
+            URL url = new URL(MainActivity.server_url_gallery + "/" + URLEncoder.encode(name + "/length","UTF-8"));
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             // Setup header
             conn.setReadTimeout(5000);
