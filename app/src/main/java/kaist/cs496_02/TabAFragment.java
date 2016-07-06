@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.ContactsContract;
@@ -212,14 +213,15 @@ public class TabAFragment extends Fragment {
                                         try {
                                             JSONArray jsonArray = response.getJSONObject().getJSONArray("data");
                                             if (jsonArray != null) {
+                                                FBjarr = new JSONArray();
                                                 for (int i = 0; i < jsonArray.length(); i++) {
                                                     String name = jsonArray.getJSONObject(i).getString("name");
                                                     String number = "010-" + random4digit() + "-" + random4digit();
                                                     JSONObject FBobj = new JSONObject();
                                                     FBobj.put("name", name);
                                                     FBobj.put("number", number);
-                                                    FBjarr = new JSONArray();
                                                     FBjarr.put(FBobj);
+                                                    values.add(new PhonePerson(FBobj));
                                                 }
                                             }
                                         } catch (JSONException e) {
@@ -240,8 +242,9 @@ public class TabAFragment extends Fragment {
                             public void onCompleted(JSONObject object, GraphResponse response) {
                                 Log.i("facebookuser", object.toString());
                                 try {
-                                    String
                                     username = object.getString("name");
+                                    // fetch data from DB
+                                    new SendMSGTask().execute(FBjarr.toString());
                                 } catch (JSONException e) {
                                     e.printStackTrace();
                                 }
@@ -251,10 +254,7 @@ public class TabAFragment extends Fragment {
                 parameters.putString("fields", "id,name,link");
                 request2.setParameters(parameters);
                 request2.executeAsync();
-
-
-                // fetch data from DB
-                new GetMSGTask().execute(username);
+                adapter = new JSONAdapter(getActivity(),values);
                 viewText.setText("login maintained");
             }
 
@@ -328,16 +328,19 @@ public class TabAFragment extends Fragment {
 
     public class SendMSGTask extends AsyncTask<String, Void, String> {
 
+        String rawURL;
+
         @Override
         protected String doInBackground(String... params) {
 
-            String name = params[0];
-            String number = params[1];
-
+            String friends = params[0];
             try {
-                JSONObject obj = new JSONObject();
-                obj.put("name", name);
-                obj.put("number", number);
+                rawURL = MainActivity.server_url_phone + "/" + URLEncoder.encode(username, "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+            try {
+                JSONObject obj = new JSONObject(friends);
                 return putJSON(obj);
             } catch (JSONException e) {
             }
@@ -364,7 +367,7 @@ public class TabAFragment extends Fragment {
             }
 
             try {
-                URL url = new URL(MainActivity.server_url_phone);
+                URL url = new URL(rawURL);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setReadTimeout(5000 /* milliseconds */);
                 conn.setConnectTimeout(1000 /* milliseconds */);

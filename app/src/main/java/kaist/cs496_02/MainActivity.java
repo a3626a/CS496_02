@@ -27,6 +27,11 @@ public class MainActivity extends FragmentActivity {
             requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, PERMISSIONS_REQUEST_READ_CONTACTS);
             Toast.makeText(getApplicationContext(), "permission requested", Toast.LENGTH_LONG);
         }
+        int PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE = 202;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE);
+            Toast.makeText(getApplicationContext(), "permission requested", Toast.LENGTH_LONG);
+        }
 
         setContentView(R.layout.activity_main);
         mDemoCollectionPagerAdapter = new TabPagerAdapter(getSupportFragmentManager());
