@@ -120,7 +120,7 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
                                     // Get response
                                     int response = conn.getResponseCode();
                                     is = conn.getInputStream();
-                                    String contentAsString = StreamHelper.readIt(is, len);
+                                    String contentAsString = StreamHelper.readIt(is);
                                     Log.i("LogCat", "[SEND]RESPOND : "+contentAsString);
                                     os.close();
                                     is.close();

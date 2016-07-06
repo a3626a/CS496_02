@@ -1,18 +1,9 @@
 package kaist.cs496_02;
 
-import android.app.Dialog;
-import android.content.Context;
 import android.content.Intent;
-import android.database.Cursor;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
-import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
-import android.provider.ContactsContract;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -34,21 +25,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
@@ -58,58 +39,19 @@ public class TabAFragment extends Fragment {
 
     TextView viewText;
     CallbackManager callbackManager;
-    static JSONAdapter adapter;
-    private final String filename = "phonebook";
+    FacebookAapter adapter;
+
     JSONArray jsonArray = new JSONArray(); //for Contacts
-    JSONArray DBjarr2; //for DB
-    JSONArray FBjarr; //for facebook
-    JSONArray Diskjarr; //for disk
-    ArrayList<PhonePerson> values = new ArrayList<>();  //for memory
-    String username = "LeeChangHwan";
-    Boolean connected;
-    Boolean FBlogon;
+    static FacebookPhonebook fbpb;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        adapter = new FacebookAapter(getActivity());
+        if (fbpb == null)
+            fbpb = new FacebookPhonebook(getActivity(), adapter);
 
-        ConnectivityManager connMgr = (ConnectivityManager) getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
-        if (networkInfo != null && networkInfo.isConnected()) {
-            Log.i("LogCat", "[GET]NETWORK AVAILABLE");
-            connected = true;
-        } else {
-            Log.i("LogCat", "[GET]NETWORK ERROR");
-            getDataFromDisk();
-            getDataFromContact();
-            connected = false;
-        }
-
-    }
-
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-
-
-        if (connected) {
-            try {
-                FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
-                outputStream.write(DBjarr2.toString().getBytes());
-                outputStream.close();
-            } catch (FileNotFoundException e) {
-            } catch (IOException e) {
-            }
-        } else {
-            try {
-                FileOutputStream outputStream = getActivity().openFileOutput(filename, Context.MODE_PRIVATE);
-                outputStream.write(Diskjarr.toString().getBytes());
-                outputStream.close();
-            } catch (FileNotFoundException e) {
-            } catch (IOException e) {
-            }
-        }
+        //getDataFromContact();
     }
 
 
@@ -118,107 +60,87 @@ public class TabAFragment extends Fragment {
         FacebookSdk.sdkInitialize(getActivity().getApplicationContext());
         View v = inflater.inflate(R.layout.tab_phonebook, container, false);
         viewText = (TextView) v.findViewById(R.id.textView);
-        ListView lv = (ListView)
-                v.findViewById(R.id.list);
+        ListView lv = (ListView) v.findViewById(R.id.list);
         lv.setAdapter(adapter);
 
-        //----------------------Start Facebook Part--------------------------------------------------------------------------------
-        callbackManager = CallbackManager.Factory.create();
-        LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
-        loginButton.setReadPermissions(Arrays.asList("user_friends", "public_profile", "email")); //access additional profile or post contents
-        loginButton.setFragment(this);
-        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
-            @Override
-            public void onSuccess(LoginResult loginResult) {
-                AccessToken accessToken = loginResult.getAccessToken();
+        if (NetworkHelper.isConnected(getActivity())) {
+            //----------------------Start Facebook Part--------------------------------------------------------------------------------
+            callbackManager = CallbackManager.Factory.create();
+            LoginButton loginButton = (LoginButton) v.findViewById(R.id.login_button);
+            loginButton.setReadPermissions(Arrays.asList("user_friends", "public_profile", "email")); //access additional profile or post contents
+            loginButton.setFragment(this);
+            loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+                @Override
+                public void onSuccess(LoginResult loginResult) {
 
-                GraphRequest request = new GraphRequest(
-                        accessToken,
-                        "/me/taggable_friends",
-                        null,
-                        HttpMethod.GET,
-                        new GraphRequest.Callback() {
-                            @Override
-                            public void onCompleted(final GraphResponse response) {
-                                //Application code for users friends
-                                new Thread() {
-                                    public void run() {
-                                        //get data and POST data to server
-                                        try {
-                                            JSONArray jsonArray = response.getJSONObject().getJSONArray("data");
-                                            if (jsonArray != null) {
-                                                FBjarr = new JSONArray();
-                                                for (int i = 0; i < jsonArray.length(); i++) {
-                                                    String name = jsonArray.getJSONObject(i).getString("name");
-                                                    String number = "010-" + random4digit() + "-" + random4digit();
-                                                    JSONObject FBobj = new JSONObject();
-                                                    FBobj.put("name", name);
-                                                    FBobj.put("number", number);
-                                                    FBjarr.put(FBobj);
-                                                }
-                                            }
-                                        } catch (JSONException e) {
-                                            e.printStackTrace();
-                                        }
+                    final FacbookLoginWrapper wrp = new FacbookLoginWrapper();
+
+                    AccessToken accessToken = loginResult.getAccessToken();
+
+                    GraphRequest request = new GraphRequest(
+                            accessToken,
+                            "/me/taggable_friends",
+                            null,
+                            HttpMethod.GET,
+                            new GraphRequest.Callback() {
+                                @Override
+                                public void onCompleted(final GraphResponse response) {
+                                    try {
+                                        wrp.setArr(response.getJSONObject().getJSONArray("data"));
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
                                     }
-                                }.start();
-                            }
-                        }
-                );
-                request.executeAsync();
-
-
-                GraphRequest request2 = GraphRequest.newMeRequest(
-                        accessToken,
-                        new GraphRequest.GraphJSONObjectCallback() {
-                            @Override
-                            public void onCompleted(JSONObject object, GraphResponse response) {
-                                Log.i("facebookuser", object.toString());
-                                try {
-                                    username = object.getString("name");
-                                    // fetch data from DB
-                                    new SendMSGTask().execute(FBjarr.toString());
-                                } catch (JSONException e) {
-                                    e.printStackTrace();
                                 }
                             }
-                        });
-                Bundle parameters = new Bundle();
-                parameters.putString("fields", "id,name,link");
-                request2.setParameters(parameters);
-                request2.executeAsync();
-                //----------------------End Facebook login success Part--------------------------------------------------------------------------------
+                    );
+                    request.executeAsync();
 
-                FBlogon = true;
-                viewText.setText("login maintained");
-            }
 
-            @Override
-            public void onCancel() {
-                FBlogon = false;
-                viewText.setText("login canceled");
-            }
+                    GraphRequest request2 = GraphRequest.newMeRequest(
+                            accessToken,
+                            new GraphRequest.GraphJSONObjectCallback() {
+                                @Override
+                                public void onCompleted(JSONObject object, GraphResponse response) {
+                                    try {
+                                        wrp.setName(object.getString("name"));
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                    Bundle parameters = new Bundle();
+                    parameters.putString("fields", "id,name,link");
+                    request2.setParameters(parameters);
+                    request2.executeAsync();
+                    //----------------------End Facebook login success Part--------------------------------------------------------------------------------
 
-            @Override
-            public void onError(FacebookException error) {
-                FBlogon = false;
-                viewText.setText("login error");
-            }
-        });
+                    viewText.setText("login maintained");
+                }
+
+                @Override
+                public void onCancel() {
+                    viewText.setText("login canceled");
+                }
+
+                @Override
+                public void onError(FacebookException error) {
+                    viewText.setText("login error");
+                }
+            });
+        }
         //--------------End Facebook Part---------------------------------------------------------
 
-
-        if (FBlogon) {
-            new GetMSGTask().execute(username);
-            getDataFromContact();
-        } else {
-            getDataFromDisk();
-            getDataFromContact();
-        }
         return v;
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
 
+
+    }
+
+/*
     //use existing adapter
     private void getDataFromContact() {
         Dialog dialog = new Dialog(getContext());
@@ -257,34 +179,8 @@ public class TabAFragment extends Fragment {
                 }
             }
         }
-
     }
-
-
-    //make new adapter
-    private void getDataFromDisk() {
-        try {
-            BufferedReader reader = new BufferedReader(new InputStreamReader(getActivity().openFileInput(filename)));
-            String text;
-            String jsonfile = "";
-            while ((text = reader.readLine()) != null) {
-                jsonfile += text;
-            }
-            JSONArray jarray = new JSONArray(jsonfile);
-            for (int i = 0; i < jarray.length(); i++) {
-                values.add(new PhonePerson((JSONObject) jarray.get(i)));
-                Diskjarr.put(jarray.get(i));
-            }
-            adapter = new JSONAdapter(getActivity(), values);
-            reader.close();
-        } catch (FileNotFoundException e) {
-            ArrayList<PhonePerson> values = new ArrayList<>();
-            adapter = new JSONAdapter(getActivity(), values);
-        } catch (IOException e) {
-        } catch (JSONException e) {
-        }
-    }
-
+*/
 
     private String random4digit() {
         int num = (int) (Math.random() * 10000);
@@ -296,30 +192,6 @@ public class TabAFragment extends Fragment {
             return "0" + Integer.toString(num);
         } else {
             return Integer.toString(num);
-        }
-    }
-
-    //put DBdata into adapter
-    public void jsonParserList(String src) {
-        try {
-            JSONArray DBjarr = new JSONArray(src);
-            JSONObject DBjobj;
-            for (int i = 0; i < DBjarr.length(); i++) {
-                DBjobj = DBjarr.getJSONObject(i);
-                if (DBjobj != null) {
-                    String name = DBjobj.getString("name");
-                    String number = DBjobj.getString("number");
-                    JSONObject DBjobj2 = new JSONObject();
-                    DBjobj2.put("name", name);
-                    DBjobj2.put("number", number);
-                    DBjarr2.put(DBjobj2);
-                    values.add(new PhonePerson(DBjobj2));
-                }
-            }
-            adapter = new JSONAdapter(getActivity(), values);
-
-        } catch (JSONException e) {
-            e.printStackTrace();
         }
     }
 
@@ -337,137 +209,4 @@ public class TabAFragment extends Fragment {
         return new String(buffer);
     }
 
-    public class SendMSGTask extends AsyncTask<String, Void, String> {
-
-        String rawURL;
-
-        @Override
-        protected String doInBackground(String... params) {
-
-            String friends = params[0];
-            try {
-                rawURL = MainActivity.server_url_phone + "/" + URLEncoder.encode(username, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-            try {
-                JSONObject obj = new JSONObject(friends);
-                return putJSON(obj);
-            } catch (JSONException e) {
-            }
-
-            return null;
-        }
-
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            viewText.setText(s);
-        }
-
-        public String putJSON(JSONObject jobj) {
-            OutputStream os = null;
-            InputStream is = null;
-
-            int len = 0;
-            try {
-                len = jobj.toString().getBytes("UTF-8").length;
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
-
-            try {
-                URL url = new URL(rawURL);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setReadTimeout(5000 /* milliseconds */);
-                conn.setConnectTimeout(1000 /* milliseconds */);
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setFixedLengthStreamingMode(len);
-                os = conn.getOutputStream();
-                OutputStreamWriter wrt = new OutputStreamWriter(os, "UTF-8");
-                Log.i("LogCat", "[SEND]ENCODING: " + wrt.getEncoding());
-                Log.i("LogCat", "[SEND]JSON RAW: " + jobj.toString());
-                wrt.write(jobj.toString());
-                wrt.flush();
-                conn.connect();
-                int response = conn.getResponseCode();
-                is = conn.getInputStream();
-                String contentAsString = StreamHelper.readIt(is, len);
-                Log.i("LogCat", "[SEND]RESPOND : contentAsString");
-                os.close();
-                is.close();
-                return contentAsString;
-            } catch (MalformedURLException e) {
-                Log.i("LogCat", "[SEND]FAILED TO CONNECT by MalformedURLException");
-            } catch (IOException e) {
-                Log.i("LogCat", "[SEND]FAILED TO CONNECT by IOException");
-                Log.i("LogCat", e.toString());
-            }
-            return null;
-        }
-
-    }
-
-    public class GetMSGTask extends AsyncTask<String, Void, String> {
-
-        @Override
-        protected String doInBackground(String... params) {
-
-            String name = params[0];
-            JSONArray jobj = getJSON(name);
-            if (jobj != null) {
-                return jobj.toString();
-            }
-            return null;
-        }
-
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-            Log.i("ChangHwan", s);
-            jsonParserList(s);
-        }
-
-        public JSONArray getJSON(String name) {
-
-            String rawURL = null;
-            try {
-                rawURL = MainActivity.server_url_phone + "/" + URLEncoder.encode(name, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                Log.i("PLACE", "getJSON");
-                e.printStackTrace();
-            }
-            InputStream is = null;
-
-            int len = 1000;
-
-            try {
-                URL url = new URL(rawURL);
-
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setReadTimeout(5000 /* milliseconds */);
-                conn.setConnectTimeout(1000 /* milliseconds */);
-                conn.setRequestMethod("GET");
-                conn.setDoInput(true);
-                conn.connect();
-                Log.i("LogCat", "[GET]CONNECTION ESATABLISHED (" + rawURL + ")");
-                int response = conn.getResponseCode();
-                is = conn.getInputStream();
-                Log.i("LogCat", "[GET]GET RESPOND");
-                // Convert the InputStream into a string
-                String contentAsString = StreamHelper.readIt(is, len);
-                Log.i("LogCat", "[GET]READ RESPOND");
-                is.close();
-                return new JSONArray(contentAsString);
-            } catch (MalformedURLException e) {
-            } catch (IOException e) {
-            } catch (JSONException e) {
-            }
-
-            Log.i("LogCat", "[GET]FAILED TO CONNECT");
-            return null;
-        }
-    }
 }

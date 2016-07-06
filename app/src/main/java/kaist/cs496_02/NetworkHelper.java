@@ -1,5 +1,10 @@
 package kaist.cs496_02;
 
+import android.app.Activity;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -11,6 +16,12 @@ import java.net.URL;
  * Created by q on 2016-07-06.
  */
 public class NetworkHelper {
+
+    public static boolean isConnected(Activity activity) {
+        ConnectivityManager connMgr = (ConnectivityManager) activity.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo networkInfo = connMgr.getActiveNetworkInfo();
+        return networkInfo != null && networkInfo.isConnected();
+    }
 
     /*
     본 메소드는 네트워크 가용성을 확인하지 않습니다.
