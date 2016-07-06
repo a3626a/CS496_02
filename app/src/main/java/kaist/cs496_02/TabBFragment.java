@@ -151,7 +151,10 @@ public class TabBFragment extends Fragment implements GridView.OnItemClickListen
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
         Intent i = new Intent(getActivity(), ImageActivity.class);
-        i.putExtra("selected", position);
+        if (TabAFragment.fbpb.getName()!=null) {
+            i.putExtra("selected", position);
+            i.putExtra("name",TabAFragment.fbpb.getName());
+        }
         startActivity(i);
     }
 
