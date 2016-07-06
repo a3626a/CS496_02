@@ -6,7 +6,6 @@ import android.content.Intent;
 import android.database.Cursor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.ContactsContract;
@@ -56,7 +55,6 @@ import java.util.Arrays;
  */
 public class TabAFragment extends Fragment {
 
-    public static String server_url = "http://ec2-52-78-73-98.ap-northeast-2.compute.amazonaws.com:8080";
     TextView viewText;
     CallbackManager callbackManager;
     static JSONAdapter adapter;
@@ -366,7 +364,7 @@ public class TabAFragment extends Fragment {
             }
 
             try {
-                URL url = new URL(server_url);
+                URL url = new URL(MainActivity.server_url_phone);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setReadTimeout(5000 /* milliseconds */);
                 conn.setConnectTimeout(1000 /* milliseconds */);
@@ -382,7 +380,7 @@ public class TabAFragment extends Fragment {
                 conn.connect();
                 int response = conn.getResponseCode();
                 is = conn.getInputStream();
-                String contentAsString = readIt(is, len);
+                String contentAsString = StreamHelper.readIt(is, len);
                 Log.i("LogCat", "[SEND]RESPOND : contentAsString");
                 os.close();
                 is.close();
@@ -395,7 +393,6 @@ public class TabAFragment extends Fragment {
             }
             return null;
         }
-
 
     }
 
@@ -423,7 +420,7 @@ public class TabAFragment extends Fragment {
 
             String rawURL = null;
             try {
-                rawURL = server_url + "/" + URLEncoder.encode(name, "UTF-8");
+                rawURL = MainActivity.server_url_phone + "/" + URLEncoder.encode(name, "UTF-8");
             } catch (UnsupportedEncodingException e) {
                 Log.i("PLACE", "getJSON");
                 e.printStackTrace();
@@ -446,7 +443,7 @@ public class TabAFragment extends Fragment {
                 is = conn.getInputStream();
                 Log.i("LogCat", "[GET]GET RESPOND");
                 // Convert the InputStream into a string
-                String contentAsString = readIt(is, len);
+                String contentAsString = StreamHelper.readIt(is, len);
                 Log.i("LogCat", "[GET]READ RESPOND");
                 is.close();
                 return new JSONArray(contentAsString);

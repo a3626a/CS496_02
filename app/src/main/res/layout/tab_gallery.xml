@@ -1,12 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<GridView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/GridView"
-    android:layout_width="fill_parent"
-    android:layout_height="fill_parent"
-    android:numColumns="auto_fit"
-    android:verticalSpacing="50dp"
-    android:horizontalSpacing="0dp"
-    android:stretchMode="columnWidth"
-    android:gravity="center">
+<RelativeLayout android:layout_height="match_parent"
+    android:layout_width="match_parent"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+    <GridView xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/GridView"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:numColumns="auto_fit"
+        android:verticalSpacing="50dp"
+        android:horizontalSpacing="0dp"
+        android:stretchMode="columnWidth"
+        android:gravity="center">
+    </GridView>
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/test_view"/>
+    <Button
+        android:layout_height="60dp"
+        android:layout_width="60dp"
+        android:id="@+id/upload"
+        android:layout_marginLeft="10dp"
+        android:layout_marginBottom="10dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+         />
 
-</GridView>
+</RelativeLayout>
+

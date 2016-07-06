@@ -23,7 +23,7 @@ public class ImageActivity extends Activity {
         getWindowManager().getDefaultDisplay().getSize(pSize);
 
         Intent intent = getIntent();
-        int rid = TabBFragment.mThumbIds[intent.getIntExtra("selected",0)];
+        int rid = intent.getIntExtra("selected",0);
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeResource(getResources(), rid, options);

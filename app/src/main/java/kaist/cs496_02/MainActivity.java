@@ -12,6 +12,8 @@ import com.astuetz.PagerSlidingTabStrip;
 
 public class MainActivity extends FragmentActivity {
 
+    public static String server_url_phone = "http://ec2-52-78-73-98.ap-northeast-2.compute.amazonaws.com:8080";
+    public static String server_url_gallery = "http://ec2-52-78-73-98.ap-northeast-2.compute.amazonaws.com:8081";
     TabPagerAdapter mDemoCollectionPagerAdapter;
     ViewPager mViewPager;
 
